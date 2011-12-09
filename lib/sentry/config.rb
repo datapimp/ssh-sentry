@@ -20,16 +20,28 @@ module Sentry
       @hosts.delete(host_id)
     end
 
-    def save
+    def backup
+      FileUtils.cp( config_file, original_config ) unless File.exists?(original_config)
+    end
 
+    def save
+      backup
     end
 
     private
+    
+    def original_config
+      config_file + '.sentry-original'
+    end
+
+    def config_file
+      File.join( ENV['HOME'], '.ssh','config')
+    end
 
     def read_config
       host_id = nil
       found_hosts = false
-      config_data = IO.read( File.join( ENV['HOME'], '.ssh','config') )
+      config_data = IO.read( config_file ) 
 
       self.hosts = config_data.lines.inject( {} ) do |config, line|
         if line.match /^Host /

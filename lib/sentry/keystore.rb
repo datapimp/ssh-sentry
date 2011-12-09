@@ -17,14 +17,16 @@ module Sentry
     
     # add a user to the key store
     def authorize options={}
-      user = options[:user]
+      user = options[:user] || `whoami`
       key_contents = options[:key] || options[:with]
       key_contents = IO.read( key_contents ) if File.exists?( key_contents )
+
+      name = key_contents.split.last  
+      key_id = add_key(name, key_contents)
+
+      associate_key_with_user( key_id, user )
       
-      key_id = add_key(key_contents)
-      associate_key_with_user( key_id, user ) unless user.nil?
-      
-      puts "Authorized #{ key_id } #{ 'from ' + user if user }" if options[:debug]
+      puts "Authorized #{ key_id } from #{ user }" if options[:debug]
 
       save_config
     end
@@ -35,8 +37,11 @@ module Sentry
     end
 
     def start options={}
-      puts "Backing up Original Authorized Keys..."
-      backup_authorized_key
+      puts "Backing up Original Authorized Keys And SSH Config..." if options[:debug]
+
+      backup_authorized_keys
+      ssh_config.backup
+
       puts "Initializing Sentry Keystore..." if options[:debug]
 
       options[:from] ||= File.join( ENV['HOME'], '.ssh', 'authorized_keys' ) 
@@ -46,7 +51,6 @@ module Sentry
       IO.read( send :authorized_keys_file ).lines.each do |key|
         authorize(:user=>`whoami`, :key => key)
       end
-
     end
 
     def manage options={}
@@ -54,13 +58,23 @@ module Sentry
     end
 
     def show_config options={}
-      puts to_keystore.inspect if options[:debug]
+      @users.each do |user, key_ids|
+        puts "keys for user: #{ user }"
+        key_ids.each do |key_id| 
+          puts "  --"
+          puts "    id: #{ key_id}"
+          puts "    contents: #{ storage[key_id] }"
+          puts "  --"
+        end
+      end
     end
 
     private
 
     def backup_authorized_keys
-      FileUtils.cp( send(:authorized_keys_file), send(:authorized_keys_file) + '.sentry-original' )
+      require 'fileutils'
+      backup = send(:authorized_keys_file) + '.sentry-original'
+      FileUtils.cp( send(:authorized_keys_file), backup ) unless File.exists?(backup)
     end
 
     def associate_key_with_user key_id, user
@@ -78,7 +92,8 @@ module Sentry
 
       # allow to pass a ssh key as a complete string
       if data.nil?
-        name, data = name.split(' ').reverse
+        data = name
+        name = data.split.last
       end
 
       # if it already exists, don't mess with it
@@ -112,6 +127,7 @@ module Sentry
     
     def save_config
       File.open(keystore_config_location,'w+') {|fh| fh.puts to_json }
+      update_authorized_keys
     end
 
     def load_config from=nil
@@ -124,7 +140,7 @@ module Sentry
       raise "Invalid Import Data" unless data.is_a?(Hash) and @storage = data.delete('storage') and @users = data.delete('users')
     end
 
-    def update_authorize_keys
+    def update_authorized_keys
       File.open(authorized_keys_file,'w+') {|fh| fh.puts to_keys_file }
     end
 
