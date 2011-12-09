@@ -1,8 +1,4 @@
-require 'minitest/spec'
-require 'minitest/autorun'
-
-require 'tempfile'
-require 'sentry'
+require File.dirname(__FILE__) + '/test_helper'
 
 describe Sentry::Keystore do
   before do

@@ -2,7 +2,7 @@ require 'json'
 
 module Sentry
   class Keystore
-    attr_accessor :keys, :storage, :options
+    attr_accessor :keys, :storage, :options, :users
 
     def initialize options={}
       @options = options
@@ -10,6 +10,22 @@ module Sentry
 
       build_keystore
     end
+    
+    # add a user to the key store
+    def authorize options={}
+      user = options[:user]
+      key_contents = options[:key] || options[:with]
+      key_contents = IO.read( key_contents ) if File.exists?( key_contents )
+      
+      add_key()
+    end
+
+    # revoke a users access from the key store
+    def revoke options={}
+
+    end
+
+    private
 
     def add_key name, data
       if storage[name].nil?
@@ -21,6 +37,8 @@ module Sentry
         
         add_key(name, data)
       end
+      
+      find_key_name(data)
     end
     
     # deletes a key by its name, or by the value of the key
@@ -36,24 +54,30 @@ module Sentry
       remove_keys storage.keys.select {|key| key.downcase.include?( machine.downcase ) }
     end
     
-    def export
-      File.open(export_location,'w+') {|fh| fh.puts( to_json) }
+    def save_config
+      File.open(keystore_export_location,'w+') {|fh| fh.puts to_json }
     end
 
-    def import from
+    def load_config from 
+      from ||= keystore_export_location
       data = JSON.parse( File.exists?(from) ? IO.read(from) : from  )
-      raise "Invalid Import Data" unless data.is_a?(Hash)
-      @storage = data
+      raise "Invalid Import Data" unless data.is_a?(Hash) and @storage = data.delete('storage') and @users = data.delete('users')
     end
 
-    private
+    def update_authorize_keys
+      File.open(authorized_keys_file,'w+') {|fh| fh.puts to_keys_file }
+    end
+
+    def to_keys_file
+      storage.values.join("\n")
+    end
 
     def to_json
       require 'json'
-      JSON.generate( storage ) 
+      JSON.generate({storage:storage,users:users}) 
     end
-
-    def export_location
+      
+    def keystore_export_location
       options[:export_location] || File.join( ENV['HOME'], '.ssh', 'sentry.keystore')
     end
 
@@ -70,15 +94,12 @@ module Sentry
     end
 
     def build_keystore
-      read_authorized_keys!
+      @keys = IO.read( authorized_keys_file ).lines.to_a.map(&:chomp)
+
       keys.each do |key|
         name = key.split(' ').last
         keystore.add_key(name, key)
       end
-    end
-
-    def read_authorized_keys!
-      @keys = IO.read( authorized_keys_file ).lines.to_a.map(&:chomp)
     end
 
     def authorized_keys_file
