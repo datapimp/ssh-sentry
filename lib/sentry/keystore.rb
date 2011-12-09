@@ -2,12 +2,16 @@ require 'json'
 
 module Sentry
   class Keystore
-    attr_accessor :storage, :options, :users
+    attr_accessor :storage, :options, :users, :ssh_config
 
     def initialize options={}
       @options = options
       @storage = {}
+      @ssh_config = Sentry::Config.new()
       @users = {}
+
+      raise "Sentry has not been configured on this machine. No file found at #{ keystore_config_location }" unless File.exists?( keystore_config_location )
+
     end
     
     # add a user to the key store
@@ -18,11 +22,32 @@ module Sentry
       
       key_id = add_key(key_contents)
       associate_key_with_user( key_id, user ) unless user.nil?
+      
+      save_config
     end
 
     # revoke a users access from the key store
     def revoke options={}
 
+    end
+
+    def start options={}
+      options[:from] ||= File.join( ENV['home'], '.ssh', 'authorized_keys' ) 
+      File.open( self.keystore_config_location ) 
+      
+      IO.read( self.authorized_keys_file ).lines.each do |key|
+        authorize(:user=>`whoami`, :key => key)
+      end
+
+      save_config
+    end
+
+    def manage options={}
+
+    end
+
+    def show_config
+      puts to_keystore.inspect
     end
 
     private
@@ -92,7 +117,7 @@ module Sentry
     end
       
     def keystore_config_location
-      options[:config_location] || File.join( ENV['HOME'], '.ssh', 'sentry.keystore')
+      options[:config_file] || File.join( ENV['HOME'], '.ssh', 'sentry.keystore')
     end
 
     def find_key_name needle

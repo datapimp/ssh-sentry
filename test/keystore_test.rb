@@ -2,7 +2,7 @@ require File.dirname(__FILE__) + '/test_helper'
 
 describe Sentry::Keystore do
   before do
-    @keystore = Sentry::Keystore.new(:authorized_keys_file=> Tempfile.new("blahblahblah").path, :config_location => Tempfile.new("blah").path )
+    @keystore = Sentry::Keystore.new(:authorized_keys_file=> Tempfile.new("blahblahblah").path, :config_file => Tempfile.new("blah").path )
   end
   
   it "should start off with empty storage" do

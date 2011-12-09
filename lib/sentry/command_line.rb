@@ -21,12 +21,16 @@ To manage a remote ssh box with sentry:
 
   sentry manage remote sshuser@sshhost with ~/.ssh/id_rsa.pub
 
+To show the current sentry config:
+  
+  sentry show config
+
 Options ( for the neckbeards ):
     EOS
 
     attr_accessor :keystore, :arguments
 
-    GRAMMAR = %w{authorize revoke on with manage remote}
+    GRAMMAR = %w{authorize revoke on with manage remote show}
 
     def initialize arguments=[]
       arguments = arguments.split if arguments.is_a? String
@@ -49,11 +53,15 @@ Options ( for the neckbeards ):
 
       @option_parser = OptionParser.new do |opts|
         
+        opts.on('-S','--show SETTING','Show config setting, default is to show full config') do |value|
+          @options[:action] = "show_config"
+        end
+
         opts.on('-s','--start','Initialize sentry from an existing authorized keys file') do |s|
           @options[:action] = "start"
         end
 
-        opts.on('-c','--config FILE','Path to sentry.keystore DEFAULT: ~/.ssh/sentry.keystore') do |c|
+        opts.on('-c','--config PATH','Path to sentry.keystore DEFAULT: ~/.ssh/sentry.keystore') do |c|
           @options[:config_file] = c
         end
 
@@ -69,6 +77,7 @@ Options ( for the neckbeards ):
 
         opts.on('-m','--manage','add a remote sentry to manage') do |m|
           @options[:action] = "manage" if m
+          @options[:remote] = true
         end
 
         opts.on('-w','--with KEY','Which with which key') do |key|
@@ -76,15 +85,25 @@ Options ( for the neckbeards ):
         end
 
         opts.on('-R','--remote SSH_HOST','Which SSH host do you want to connect to') do |host|
-          @options[:host] = host
+          @options[:remote] = true
+
+          parts = host.split('@')
+
+          if parts.length > 1
+            @options[:host] = parts.pop
+            @options[:user] = parts.pop
+          else
+            @options[:host] = host
+          end
         end
 
         opts.on('-o','--on SSH_HOST','run this action on a remote sentry') do |host|
           @options[:host] = host
+          @options[:remote] = true
         end
 
         opts.on_tail('-v','--version','display Sentry version') do
-          puts "Sentry Version #{Sentry::VERSION}"
+          puts "Sentry Version #{ Sentry::VERSION }"
           exit
         end
       end
