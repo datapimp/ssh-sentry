@@ -11,7 +11,8 @@ module Sentry
       @users = {}
 
       raise "Sentry has not been configured on this machine. No file found at #{ keystore_config_location }" unless File.exists?( keystore_config_location )
-
+      
+      load_config
     end
     
     # add a user to the key store
@@ -23,6 +24,8 @@ module Sentry
       key_id = add_key(key_contents)
       associate_key_with_user( key_id, user ) unless user.nil?
       
+      puts "Authorized #{ key_id } #{ 'from ' + user if user }" if options[:debug]
+
       save_config
     end
 
@@ -32,36 +35,54 @@ module Sentry
     end
 
     def start options={}
-      options[:from] ||= File.join( ENV['home'], '.ssh', 'authorized_keys' ) 
-      File.open( self.keystore_config_location ) 
+      puts "Backing up Original Authorized Keys..."
+      backup_authorized_key
+      puts "Initializing Sentry Keystore..." if options[:debug]
+
+      options[:from] ||= File.join( ENV['HOME'], '.ssh', 'authorized_keys' ) 
+
+      File.open( send :keystore_config_location ) 
       
-      IO.read( self.authorized_keys_file ).lines.each do |key|
+      IO.read( send :authorized_keys_file ).lines.each do |key|
         authorize(:user=>`whoami`, :key => key)
       end
 
-      save_config
     end
 
     def manage options={}
 
     end
 
-    def show_config
-      puts to_keystore.inspect
+    def show_config options={}
+      puts to_keystore.inspect if options[:debug]
     end
 
     private
 
+    def backup_authorized_keys
+      FileUtils.cp( send(:authorized_keys_file), send(:authorized_keys_file) + '.sentry-original' )
+    end
+
     def associate_key_with_user key_id, user
+      user = user.chomp
+
       @users[ user ] ||= []
-      @users[ user ] << key_id
+      @users[ user ] << key_id unless @users[user].include? key_id
     end
 
     def add_key name, data=nil
-      # allow to pass a ssh key using its machine name as the key name
+      # allow a user to pass a path to a public key
+      if data and File.exists?(data)
+        data = IO.read(data)
+      end
+
+      # allow to pass a ssh key as a complete string
       if data.nil?
         name, data = name.split(' ').reverse
       end
+
+      # if it already exists, don't mess with it
+      return name if storage[name] == data
 
       if storage[name].nil?
         storage[name] = data
@@ -94,8 +115,12 @@ module Sentry
     end
 
     def load_config from=nil
-      from ||= keystore_config_location
-      data = JSON.parse( File.exists?(from) ? IO.read(from) : from  )
+      if !from
+        from = IO.read( keystore_config_location )
+      end
+
+      data = JSON.parse( from ) rescue {"storage"=>{}, "users"=>{} } 
+
       raise "Invalid Import Data" unless data.is_a?(Hash) and @storage = data.delete('storage') and @users = data.delete('users')
     end
 

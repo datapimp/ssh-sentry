@@ -4,4 +4,6 @@ $LOAD_PATH.unshift File.join(File.dirname(__FILE__), '..', 'lib')
 
 require 'sentry'
 
+ARGV.unshift "--debug" unless ARGV.include?('--debug')
+
 Sentry::CommandLine.new(ARGV)

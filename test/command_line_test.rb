@@ -23,12 +23,12 @@ describe Sentry::CommandLine do
 
   it "should parse english commands to show the current config" do
     cmd = Sentry::CommandLine.new("show config")
-    cmd.options.must_equal ({:action=>"show_config"})
+    cmd.options.must_equal ({:action=>"show_config",:setting=>"config"})
   end
 
   it "should parse english commands to show the current config on a remote" do
     cmd = Sentry::CommandLine.new("show config on staging")
-    cmd.options.must_equal ({:action=>"show_config",:remote=>true,:host=>"staging"})
+    cmd.options.must_equal ({:action=>"show_config",:remote=>true,:host=>"staging",:setting=>"config"})
   end
 
 end

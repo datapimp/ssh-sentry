@@ -30,15 +30,15 @@ Options ( for the neckbeards ):
 
     attr_accessor :keystore, :arguments
 
-    GRAMMAR = %w{authorize revoke on with manage remote show}
+    GRAMMAR = %w{authorize revoke on with manage remote show start}
 
     def initialize arguments=[]
       arguments = arguments.split if arguments.is_a? String
       parse_options arguments
-      
-      if !@options[:action]
+
+      if @options[:action]
         @keystore = Sentry::Keystore.new( @options )
-        @keystore.send( @options.delete(:action), @options )
+        @keystore.send( @options[:action], @options )
       end
     end
     
@@ -47,14 +47,17 @@ Options ( for the neckbeards ):
     end
 
     def parse_options arguments=[]
-      @options = {
-
-      }
+      @options = {}
 
       @option_parser = OptionParser.new do |opts|
         
+        opts.on('-D','--debug') do |d|
+          @options[:debug] = true if d
+        end
+
         opts.on('-S','--show SETTING','Show config setting, default is to show full config') do |value|
-          @options[:action] = "show_config"
+          @options[:action] = "show_config" if value
+          @options[:setting] = value if value
         end
 
         opts.on('-s','--start','Initialize sentry from an existing authorized keys file') do |s|

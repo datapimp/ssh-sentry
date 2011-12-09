@@ -23,6 +23,11 @@ describe Sentry::Keystore do
 
     @keystore.storage.keys.must_equal ["jonathan@thinktank","jonathan@thinktank:1","jonathan@thinktank:2"]
   end
+  
+  it "should backup the config file" do
+    @keystore.send(:backup_authorized_keys)
+    File.exists?( @keystore.send(:authorized_keys_file) + '.sentry-original' ).must_equal true
+  end
 
   it "should allow me to find a key's id by the value" do
     @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
