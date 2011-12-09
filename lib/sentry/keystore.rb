@@ -2,14 +2,12 @@ require 'json'
 
 module Sentry
   class Keystore
-    attr_accessor :keys, :storage, :options, :users
+    attr_accessor :storage, :options, :users
 
     def initialize options={}
       @options = options
       @storage = {}
       @users = {}
-
-      build_keystore
     end
     
     # add a user to the key store
@@ -107,15 +105,6 @@ module Sentry
 
     def my
       self
-    end
-
-    def build_keystore
-      @keys = IO.read( authorized_keys_file ).lines.to_a.map(&:chomp)
-
-      keys.each do |key|
-        name = key.split(' ').last
-        keystore.add_key(name, key)
-      end
     end
 
     def authorized_keys_file
