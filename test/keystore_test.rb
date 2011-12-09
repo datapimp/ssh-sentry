@@ -2,7 +2,7 @@ require File.dirname(__FILE__) + '/test_helper'
 
 describe Sentry::Keystore do
   before do
-    @keystore = Sentry::Keystore.new(:authorized_keys_file=> Tempfile.new("blahblahblah").path, :export_location => Tempfile.new("blah").path )
+    @keystore = Sentry::Keystore.new(:authorized_keys_file=> Tempfile.new("blahblahblah").path, :config_location => Tempfile.new("blah").path )
   end
   
   it "should start off with empty storage" do
@@ -18,41 +18,47 @@ describe Sentry::Keystore do
     
     keys.each do |key|
       name = key.split.last
-      @keystore.add_key(name, key)
+      @keystore.send(:add_key,name,key)
     end
 
     @keystore.storage.keys.must_equal ["jonathan@thinktank","jonathan@thinktank:1","jonathan@thinktank:2"]
   end
 
   it "should allow me to find a key's id by the value" do
-    @keystore.add_key("jonathan@thinktank","blahblahblah")
+    @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
     @keystore.send(:find_key_name,"blahblahblah").must_equal "jonathan@thinktank"
   end
 
   it "should allow me to remove a key by the key name" do
-    @keystore.add_key("jonathan@thinktank","blahblahblah")
-    @keystore.remove_keys("jonathan@thinktank").must_equal 1
+    @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
+    @keystore.send(:remove_keys,"jonathan@thinktank").must_equal 1
   end
 
   it "should allow me to remove a key by the key contents" do
-    @keystore.add_key("jonathan@thinktank","blahblahblah")
-    @keystore.remove_keys("blahblahblah").must_equal 1
+    @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
+    @keystore.send(:remove_keys,"blahblahblah").must_equal 1
   end
 
   it "should allow me to remove all keys for a given machine id" do
-    @keystore.add_key("jonathan@thinktank","blahblahblah")
-    @keystore.add_key("jonathan@thinktank","yoyoyoyoyoyo")
-    @keystore.remove_by_machine("jonathan@thinktank").must_equal 2
+    @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
+    @keystore.authorize(:user=>"jonathan",:with=>"yoyoyoyoyoyo jonathan@thinktank")
+    @keystore.send(:remove_by_machine,"jonathan@thinktank").must_equal 2
   end
 
-  it "should allow me to export the key store to disk" do
-    @keystore.add_key("jonathan@thinktank","blahblahblah")
-    @keystore.export
-    IO.read(@keystore.send(:export_location)).chomp.must_equal JSON.generate( @keystore.storage )
+  it "should allow me to config the key store to disk" do
+    @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
+    @keystore.send :save_config
+    @keystore.send(:to_keystore).must_equal JSON.parse( IO.read( @keystore.send(:keystore_config_location) ))
   end
 
-  it "should allow me to import a key store" do
-    @keystore.import('{"jonathan@thinktank":"blahblah"}')
+  it "should allow me to import a key store from disk" do
+    File.open( @keystore.send(:keystore_config_location), 'w+') {|f| f.puts '{"storage":{"jonathan@thinktank":"blahblahblah"},"users":{"jonathan":["jonathan@thinktank"]}}'}
+    @keystore.send :load_config
+    @keystore.storage.wont_be_empty
+  end
+
+  it "should allow me to import a key store by passing a JSON string as config" do
+    @keystore.send :load_config, '{"storage":{"jonathan@thinktank":"blahblahblah"},"users":{"jonathan":["jonathan@thinktank"]}}'
     @keystore.storage.wont_be_empty
   end
 

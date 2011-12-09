@@ -7,6 +7,7 @@ module Sentry
     def initialize options={}
       @options = options
       @storage = {}
+      @users = {}
 
       build_keystore
     end
@@ -17,7 +18,8 @@ module Sentry
       key_contents = options[:key] || options[:with]
       key_contents = IO.read( key_contents ) if File.exists?( key_contents )
       
-      add_key()
+      key_id = add_key(key_contents)
+      associate_key_with_user( key_id, user ) unless user.nil?
     end
 
     # revoke a users access from the key store
@@ -27,7 +29,17 @@ module Sentry
 
     private
 
-    def add_key name, data
+    def associate_key_with_user key_id, user
+      @users[ user ] ||= []
+      @users[ user ] << key_id
+    end
+
+    def add_key name, data=nil
+      # allow to pass a ssh key using its machine name as the key name
+      if data.nil?
+        name, data = name.split(' ').reverse
+      end
+
       if storage[name].nil?
         storage[name] = data
       else
@@ -55,11 +67,11 @@ module Sentry
     end
     
     def save_config
-      File.open(keystore_export_location,'w+') {|fh| fh.puts to_json }
+      File.open(keystore_config_location,'w+') {|fh| fh.puts to_json }
     end
 
-    def load_config from 
-      from ||= keystore_export_location
+    def load_config from=nil
+      from ||= keystore_config_location
       data = JSON.parse( File.exists?(from) ? IO.read(from) : from  )
       raise "Invalid Import Data" unless data.is_a?(Hash) and @storage = data.delete('storage') and @users = data.delete('users')
     end
@@ -74,11 +86,15 @@ module Sentry
 
     def to_json
       require 'json'
-      JSON.generate({storage:storage,users:users}) 
+      JSON.generate( to_keystore ) 
+    end
+
+    def to_keystore
+      {"storage"=>storage,"users"=>users}
     end
       
-    def keystore_export_location
-      options[:export_location] || File.join( ENV['HOME'], '.ssh', 'sentry.keystore')
+    def keystore_config_location
+      options[:config_location] || File.join( ENV['HOME'], '.ssh', 'sentry.keystore')
     end
 
     def find_key_name needle

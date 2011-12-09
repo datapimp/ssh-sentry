@@ -23,8 +23,6 @@ Options ( for the neckbeards ):
     def initialize arguments=[]
       arguments = arguments.split if arguments.is_a? String
       parse_options arguments
-
-      puts options.inspect
     end
     
     def options
