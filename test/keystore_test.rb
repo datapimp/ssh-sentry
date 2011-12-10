@@ -41,6 +41,10 @@ describe Sentry::Keystore do
 
   it "should allow me to remove a key by the key contents" do
     @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
+
+    require 'ruby-debug'
+    debugger
+
     @keystore.send(:remove_keys,"blahblahblah").must_equal 1
   end
 

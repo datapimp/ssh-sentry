@@ -3,39 +3,45 @@ require 'optparse'
 module Sentry
   class CommandLine
     BANNER = <<-EOS
-Usage sentry [command] [options] 
+Usage.
 
-Examples:
+English, motherfucker.  Do you speak it?
 
-To initialize sentry on a server:
+To install a keystore on a remote server:
 
-  sentry start from ~/.ssh/authorized_keys
+  sentry install yourself on staging
 
-To add or remove users from a host:
+To grant access to a dude named jonathan:
 
-  sentry authorize jonathan on staging with ~/.ssh/id_rsa.pub
+  sentry authorize jonathan on staging using ~/.ssh/id_rsa.pub
 
-  sentry revoke jonathan on staging
-
-To manage a remote ssh box with sentry:
-
-  sentry manage remote sshuser@sshhost with ~/.ssh/id_rsa.pub
-
-To show the current sentry config:
+To take it away
   
-  sentry show config
+  sentry 
 
-Options ( for the neckbeards ):
+To show the current sentry / ssh config:
+  
+  sentry show config on staging
+
+  sentry show users on staging 
+
+  sentry show keys for jonathan on staging
+
+Leaving off the on staging part will run the command on your own ssh config.
+
+
     EOS
 
     attr_accessor :keystore, :arguments
 
-    GRAMMAR = %w{authorize revoke on with manage remote show start}
+    GRAMMAR = %w{authorize revoke on with manage remote show start using for install}
 
     def initialize arguments=[]
       arguments = arguments.split if arguments.is_a? String
       parse_options arguments
+    end
 
+    def run
       if @options[:action]
         @keystore = Sentry::Keystore.new( @options )
         @keystore.send( @options[:action], @options )
@@ -55,35 +61,39 @@ Options ( for the neckbeards ):
           @options[:debug] = true if d
         end
 
-        opts.on('-S','--show SETTING','Show config setting, default is to show full config') do |value|
+        opts.on('--show SETTING','Show config setting, default is to show full config') do |value|
           @options[:action] = "show_config" if value
           @options[:setting] = value if value
         end
 
-        opts.on('-s','--start','Initialize sentry from an existing authorized keys file') do |s|
+        opts.on('--start','Initialize sentry from an existing authorized keys file') do |s|
           @options[:action] = "start"
         end
 
-        opts.on('-c','--config PATH','Path to sentry.keystore DEFAULT: ~/.ssh/sentry.keystore') do |c|
+        opts.on('--config PATH','Path to sentry.keystore DEFAULT: ~/.ssh/sentry.keystore') do |c|
           @options[:config_file] = c
         end
+        
+        opts.on('--for USER','Do something for a user') do |u|
+          @options[:user] = u
+        end
 
-        opts.on('-a','--authorize USER','Authorize a user') do |user,val|
+        opts.on('--authorize USER','Authorize a user') do |user,val|
           @options[:action] = "authorize"
           @options[:user] = user
         end
 
-        opts.on('-r','--revoke USER','Revoke authorization for a user') do |user|
+        opts.on('--revoke USER','Revoke authorization for a user') do |user|
           @options[:action] = "revoke"
           @options[:user] = user
         end
 
-        opts.on('-m','--manage','add a remote sentry to manage') do |m|
+        opts.on('--manage','add a remote sentry to manage') do |m|
           @options[:action] = "manage" if m
           @options[:remote] = true
         end
 
-        opts.on('-w','--with KEY','Which with which key') do |key|
+        opts.on('--with PATH','Which with which key') do |key|
           @options[:key] = key
         end
 
