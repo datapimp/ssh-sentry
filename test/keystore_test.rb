@@ -31,7 +31,7 @@ describe Sentry::Keystore do
 
   it "should allow me to find a key's id by the value" do
     @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
-    @keystore.send(:find_key_name,"blahblahblah").must_equal "jonathan@thinktank"
+    @keystore.send(:find_key_name,"blahblahblah jonathan@thinktank").must_equal "jonathan@thinktank"
   end
 
   it "should allow me to remove a key by the key name" do
@@ -41,11 +41,7 @@ describe Sentry::Keystore do
 
   it "should allow me to remove a key by the key contents" do
     @keystore.authorize(:user=>"jonathan",:with=>"blahblahblah jonathan@thinktank")
-
-    require 'ruby-debug'
-    debugger
-
-    @keystore.send(:remove_keys,"blahblahblah").must_equal 1
+    @keystore.send(:remove_keys,"blahblahblah jonathan@thinktank").must_equal 1
   end
 
   it "should allow me to remove all keys for a given machine id" do

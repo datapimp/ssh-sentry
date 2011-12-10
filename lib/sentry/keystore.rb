@@ -36,7 +36,7 @@ module Sentry
 
     end
 
-    def start options={}
+    def install options={}
       puts "Backing up Original Authorized Keys And SSH Config..." if options[:debug]
 
       backup_authorized_keys
