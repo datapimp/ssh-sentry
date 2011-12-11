@@ -28,6 +28,10 @@ module Sentry
       backup
     end
 
+		def restore
+			FileUtils.cp( original_config, config_file )
+		end
+
     private
     
     def original_config

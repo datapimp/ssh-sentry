@@ -32,7 +32,7 @@ English gets translated into options:
 
     attr_accessor :keystore, :arguments
 
-    GRAMMAR = %w{authorize revoke on with manage remote show using for install}
+    GRAMMAR = %w{authorize revoke on with manage remote show using for install uninstall}
 
     def initialize arguments=[]
       arguments = arguments.split if arguments.is_a? String
@@ -59,6 +59,10 @@ English gets translated into options:
       @option_parser = OptionParser.new do |opts|
         opts.separator ""
         opts.separator "Actions:"
+
+        opts.on("-u",'--uninstall','Initialize sentry from an existing authorized keys file') do |s|
+          @options[:action] = "uninstall"
+        end
 
         opts.on("-i",'--install','Initialize sentry from an existing authorized keys file') do |s|
           @options[:action] = "install"

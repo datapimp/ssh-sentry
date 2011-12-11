@@ -10,14 +10,15 @@ module Sentry
       @ssh_config = Sentry::Config.new()
       @users = {}
 
-      raise "Sentry has not been configured on this machine. No file found at #{ keystore_config_location }" unless File.exists?( keystore_config_location )
-      
-      load_config
+      puts "Initializing Keystore With #{ options }" if debug?
+
+      load_config unless options[:action] == "install"
     end
     
     # add a user to the key store
     def authorize options={}
       user = options[:user] || `whoami`
+
       key_contents = options[:key] || options[:with]
       key_contents = IO.read( key_contents ) if File.exists?( key_contents )
 
@@ -26,35 +27,41 @@ module Sentry
 
       associate_key_with_user( key_id, user )
       
-      puts "Authorized #{ key_id } from #{ user }" if options[:debug]
+      puts "Authorized #{ key_id } from #{ user }" if debug?
 
       save_config
     end
 
     # revoke a users access from the key store
     def revoke options={}
+      user = options[:user] || `whoami` 
 
+      if(options[:key] || options[:with] || options[:using])
+      
+      else
+        key_ids = users.delete( user )
+        key_ids.each {|key_id| storage.delete(key_id)}
+      end
+
+      save_config
+    end
+  
+    def uninstall options={}
+      restore_authorized_keys
+      ssh_config.restore
     end
 
     def install options={}
-      puts "Backing up Original Authorized Keys And SSH Config..." if options[:debug]
-
       backup_authorized_keys
       ssh_config.backup
 
-      puts "Initializing Sentry Keystore..." if options[:debug]
-
       options[:from] ||= File.join( ENV['HOME'], '.ssh', 'authorized_keys' ) 
 
-      File.open( send :keystore_config_location ) 
+      File.open( send(:keystore_config_location), 'w+' ) {|fh| fh.puts JSON.generate(default_config) }
       
       IO.read( send :authorized_keys_file ).lines.each do |key|
         authorize(:user=>`whoami`, :key => key)
       end
-    end
-
-    def manage options={}
-
     end
 
     def show_config options={}
@@ -71,10 +78,24 @@ module Sentry
 
     private
 
+    def debug?
+      options[:debug]
+    end
+
+    def restore_authorized_keys
+      require 'fileutils'
+      backup = send(:authorized_keys_file) + '.sentry-original'
+      FileUtils.cp(backup,send(:authorized_keys_file))
+    end
+
     def backup_authorized_keys
       require 'fileutils'
       backup = send(:authorized_keys_file) + '.sentry-original'
       FileUtils.cp( send(:authorized_keys_file), backup ) unless File.exists?(backup)
+    end
+    
+    def key_ids_for_user user
+      @users[ user ] 
     end
 
     def associate_key_with_user key_id, user
@@ -131,13 +152,23 @@ module Sentry
     end
 
     def load_config from=nil
+
+      unless File.exists?( keystore_config_location )
+        puts "Sentry has not been configured on this machine. type 'sentry install'" 
+        exit
+      end
+
       if !from
         from = IO.read( keystore_config_location )
       end
 
-      data = JSON.parse( from ) rescue {"storage"=>{}, "users"=>{} } 
+      data = JSON.parse( from ) rescue default_config 
 
       raise "Invalid Import Data" unless data.is_a?(Hash) and @storage = data.delete('storage') and @users = data.delete('users')
+    end
+
+    def default_config
+      {"storage"=>{}, "users"=>{} }
     end
 
     def update_authorized_keys
