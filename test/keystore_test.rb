@@ -21,6 +21,11 @@ describe Sentry::Keystore do
       @keystore.send(:key_ids_for_user,"jonathan").must_equal ["jonathan@thinktank"]
     end
   end
+  
+  it "should allow me to authorize a user with a key" do
+    @keystore.authorize(:user=>"jonathan",:with=>"ssh-rsa blahblahblah jonathan@thinktank")
+    IO.read( @keystore.send(:authorized_keys_file) ).lines.to_a.must_include "ssh-rsa blahblahblah jonathan@thinktank"
+  end
 
   describe "revoking access from users" do
     it "should allow me to revoke access from a user named jonathan" do
